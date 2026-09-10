@@ -25,6 +25,14 @@ namespace MediaBrowser.Providers.Plugins.Tmdb
     {
         private const int CacheDurationInHours = 1;
 
+        private static readonly Dictionary<string, string> ThumbnailSizes = new Dictionary<string, string>
+        {
+            { "Primary", "w500" },
+            { "Backdrop", "w780" },
+            { "Thumb", "w780" },
+            { "Logo", "w500" },
+        };
+
         // Sized in TMDb records - see EstimateSize - rather than in responses, because the responses
         // differ in weight by orders of magnitude.
         private const int CacheSizeLimit = 100_000;
@@ -170,18 +178,10 @@ namespace MediaBrowser.Providers.Plugins.Tmdb
         /// <param name="imageLanguages">A comma-separated list of image languages.</param>
         /// <param name="countryCode">The country code, ISO 3166-1.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>The TMDb tv show episode group information or null if not found.</returns>
-        private async Task<TvGroupCollection?> GetSeriesGroupAsync(int tvShowId, string displayOrder, string? language, string? imageLanguages, string? countryCode, CancellationToken cancellationToken)
+        /// <returns>The TMDb tv show episode group information or null if the display order has no matching group.</returns>
+        public async Task<TvGroupCollection?> GetSeriesGroupAsync(int tvShowId, string? displayOrder, string? language, string? imageLanguages, string? countryCode, CancellationToken cancellationToken)
         {
-            TvGroupType? groupType =
-                string.Equals(displayOrder, "originalAirDate", StringComparison.Ordinal) ? TvGroupType.OriginalAirDate :
-                string.Equals(displayOrder, "absolute", StringComparison.Ordinal) ? TvGroupType.Absolute :
-                string.Equals(displayOrder, "dvd", StringComparison.Ordinal) ? TvGroupType.DVD :
-                string.Equals(displayOrder, "digital", StringComparison.Ordinal) ? TvGroupType.Digital :
-                string.Equals(displayOrder, "storyArc", StringComparison.Ordinal) ? TvGroupType.StoryArc :
-                string.Equals(displayOrder, "production", StringComparison.Ordinal) ? TvGroupType.Production :
-                string.Equals(displayOrder, "tv", StringComparison.Ordinal) ? TvGroupType.TV :
-                null;
+            var groupType = TmdbUtils.GetEpisodeGroupType(displayOrder);
 
             if (groupType is null)
             {
@@ -678,6 +678,7 @@ namespace MediaBrowser.Providers.Plugins.Tmdb
                 yield return new RemoteImageInfo
                 {
                     Url = GetUrl(size, image.FilePath),
+                    ThumbnailUrl = GetUrl(ThumbnailSizes.GetValueOrDefault(type.ToString(), ""), image.FilePath),
                     CommunityRating = image.VoteAverage,
                     VoteCount = image.VoteCount,
                     Width = scaleImage ? null : image.Width,
